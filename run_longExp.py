@@ -7,12 +7,12 @@ import numpy as np
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='SparseTSF & other models for Time Series Forecasting')
+    parser = argparse.ArgumentParser(description='SWIFT & other models for Time Series Forecasting')
 
     # basic config
     parser.add_argument('--is_training', type=int, required=True, default=1, help='status')
     parser.add_argument('--model_id', type=str, required=True, default='test', help='model id')
-    parser.add_argument('--model', type=str, required=True, default='SparseTSF', help='model name')
+    parser.add_argument('--model', type=str, required=True, default='SWIFT', help='model name')
 
     # data loader
     parser.add_argument('--data', type=str, required=True, default='ETTm1', help='dataset type')
@@ -30,7 +30,7 @@ if __name__ == '__main__':
     parser.add_argument('--label_len', type=int, default=48, help='start token length')
     parser.add_argument('--pred_len', type=int, default=96, help='prediction sequence length')
 
-    # SparseTSF
+    # SWIFT
     parser.add_argument('--period_len', type=int, default=24, help='period length')
 
     # PatchTST

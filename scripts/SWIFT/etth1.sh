@@ -2,12 +2,12 @@ if [ ! -d "./logs" ]; then
     mkdir ./logs
 fi
 
-model_name=SparseTSF
+model_name=SWIFT
 
 root_path_name=./dataset/
-data_path_name=ETTh2.csv
-model_id_name=ETTh2
-data_name=ETTh2
+data_path_name=ETTh1.csv
+model_id_name=ETTh1
+data_name=ETTh1
 
 seq_len=720
 for pred_len in 96 192 336 720
@@ -26,6 +26,6 @@ do
     --enc_in 7 \
     --train_epochs 30 \
     --patience 5 \
-    --itr 1 --batch_size 256 --learning_rate 0.03
+    --itr 1 --batch_size 256 --learning_rate 0.02
 done
 
