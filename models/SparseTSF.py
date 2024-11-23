@@ -63,50 +63,57 @@ class Model(nn.Module):
         self.seq_len = configs.seq_len
         self.pred_len = configs.pred_len
         self.enc_in = configs.enc_in
-        self.period_len = configs.period_len
-        self.individual = True #configs.individual
-
+        self.conv_kernel = configs.conv_kernel
+        self.use_convdropout = configs.use_convdropout
+        self.conv_dropout = configs.conv_dropout
+        self.fc_dropout = configs.fc_dropout
         self.wav = 'haar'
         self.J = 1
 
+        self.conv = nn.Conv1d(in_channels=2, out_channels=2, kernel_size=self.conv_kernel, stride=1,
+                              padding=(self.conv_kernel - 1) // 2, padding_mode="zeros", bias=False)
         self.dwt = DWT1DForward(wave=self.wav, J=self.J)
         self.idwt = DWT1DInverse(wave=self.wav)
 
         yl, _ = compute_dwt_dimensions(self.seq_len, self.J, self.wav)
         yl_, _ = compute_dwt_dimensions(self.pred_len, self.J, self.wav)
 
-        if self.individual:
-            self.projection = nn.ModuleList()
-            for i in range(self.enc_in):
-                self.projection.append(nn.Linear(yl, yl_))
-        else:
-            self.projection = nn.Linear(yl, yl_)
-
-        self.dropout = nn.Dropout(0.1)
+        self.yl_upsampler = nn.Linear(yl, yl_)
+        if self.use_convdropout:
+            self.dropout1 = nn.Dropout(self.conv_dropout)
+        self.dropout2 = nn.Dropout(self.fc_dropout)
 
     def forward(self, x):
-        # normalization and permute     b,t,n -> b,n,t
+        # normalization and permute     b,s,c -> b,c,s
         seq_mean = torch.mean(x, dim=1).unsqueeze(1)
         x = (x - seq_mean).permute(0, 2, 1)
+
+        # 1D convolution aggregation
+        # x = self.dropout1(self.conv(x))
 
         # DWT
         yl, yh = self.dwt(x)
         yh = yh[0]
+        # yh = self.dropout1(self.conv(yh))
         y = torch.stack([yl, yh], dim=-2)
 
-        # Up sample
-        if self.individual:
-            y_ = torch.zeros([y.size(0), y.size(1), y.size(2), self.pred_len//2], dtype=y.dtype).to(y.device)
-            for i in range(self.enc_in):
-                y_[:, i, :, :] = self.dropout(self.projection[i](y[:, i, :, :]))
+        if self.use_convdropout:
+            y = self.dropout1(
+                self.conv(y.reshape(int(y.size(0) * self.enc_in), 2, y.size(-1))).reshape(-1, self.enc_in, 2,
+                                                                                          y.size(-1)) + y)
         else:
-            y_ = self.dropout(self.projection(y))
-        yl_, yh_ = y_[:, :, 0, :], [y_[:, :, 1, :]]
+            y = self.conv(y.reshape(int(y.size(0) * self.enc_in), 2, y.size(-1))).reshape(-1, self.enc_in, 2,
+                                                                                          y.size(-1)) + y
+        # Up sample
+        y = self.dropout2(self.yl_upsampler(y))
+        yl_, yh_ = y[:, :, 0, :], [y[:, :, 1, :]]
 
         # IDWT
-        y_ = self.idwt((yl_, yh_))
+        y = self.idwt((yl_, yh_))
 
         # permute and denorm
-        y = y_.permute(0, 2, 1) + seq_mean
+        y = y.permute(0, 2, 1) + seq_mean
 
         return y
+
+

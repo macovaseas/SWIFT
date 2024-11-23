@@ -3,3 +3,5 @@ matplotlib
 pandas
 scikit-learn
 torch
+PyWavelets
+pytorch_wavelets
